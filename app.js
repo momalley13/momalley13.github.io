@@ -220,8 +220,11 @@ function tempLabel(r, lookup, which) {
   return t == null ? "—" : bothT(t);
 }
 function fieldHtml(label, inputId, value, unitId, unit, options) {
+  const signed = ["temp", "coilT", "press", "coilP"].includes(inputId);
+  const signBtn = signed ? `<button type="button" class="sign" data-sign="${inputId}" aria-label="Toggle sign">±</button>` : "";
   return `<label><span>${label}</span><span class="row">
     <input id="${inputId}" inputmode="decimal" value="${esc(value)}" aria-label="${label}">
+    ${signBtn}
     <select id="${unitId}" aria-label="${label} unit">${options.map(([id, name]) => `<option value="${id}"${id === unit ? " selected" : ""}>${name}</option>`).join("")}</select>
   </span></label>`;
 }
@@ -373,317 +376,32 @@ function chargeGuide(r) {
   const glide = r.glide || 0;
   const zeo = Boolean(r.pd) && glide >= 0.4;
   const near = r.kind === "blend" && !zeo;
-  const a3 = (r.safety || "").startsWith("A3");
-  const a2l = (r.safety || "").includes("2L");
-  const gK = glide.toFixed(1);
-  const gF = (glide * 1.8).toFixed(1);
-  const steps = [];
-  let title = `Charge ${r.id} by weight`;
-  if (r.id === "R-744") {
-    title = "Charge R-744 by weight, not by the gauge";
-    steps.push(
-      "Evacuate the circuit. Break the vacuum with CO2 only — don't leave nitrogen or air in it.",
-      "Weigh liquid CO2 in from the cylinder. A warm idle vessel is already hundreds of psig, so the gauge cannot tell you the charge.",
-      "On a transcritical rack, once the gas-cooler outlet is above 31 °C (88 °F) there is no condenser and no subcooling. Stop at the OEM charge weight.",
-      "On a subcritical cascade low stage, set evaporator superheat from this one saturation line, and keep that stage's high side below the critical point.",
-    );
-  } else if (r.id === "R-717") {
-    title = "Charge R-717 as liquid, by weight";
-    steps.push(
-      "Use the ammonia charging procedure and a clean ammonia-rated hose. This is not a halocarbon gauge job.",
-      "Weigh liquid into the high side or the receiver. A flooded or overfeed plant is charged to operating level, not to a DX superheat.",
-      "A DX ammonia coil still uses this single saturation temperature for superheat. Don't borrow a halocarbon target.",
-    );
-  } else if (a3) {
-    title = `Charge ${r.id} by weight, in grams`;
-    steps.push(
-      `Evacuate, then weigh liquid ${r.id} in. The nameplate is the limit — domestic hydrocarbon cabinets are often 150 g or less.`,
-      "Do not charge to a pressure, a frost line, or a superheat number. A few grams high overcharges a capillary.",
-      "No ignition sources, and don't vent it into the room. A3 means it burns.",
-    );
-    if (zeo) steps.push("It is also a blend: only liquid may leave the cylinder. Vapor charging changes the mix.");
-  } else if (zeo) {
-    title = `Charge ${r.id} as liquid only`;
-    steps.push(
-      "Invert the cylinder or open the liquid valve. If vapor leaves first, the light component boils off and the charge no longer matches this chart.",
-      "Weigh it in. After a leak, do not top off by gauge — the vapor that escaped is a different mixture. Recover and weigh a fresh charge when you don't know what left.",
-      "If you feed the low side while it runs, throttle the liquid so the compressor doesn't slug. Skip that if the OEM forbids it.",
-    );
-  } else if (near) {
-    title = `Charge ${r.id} as liquid, by weight`;
-    steps.push(
-      `Glide is only ${gK} K, but it is still a blend. Take liquid from the cylinder and weigh it.`,
-      "A small top-off shifts this mix less than a high-glide blend. After a real leak, recover and weigh a fresh charge.",
-    );
-  } else {
-    steps.push(
-      "Evacuate, then weigh liquid into the high side with the system off. That is the accurate charge.",
-      "A pure fluid can be added as vapor into the suction side while it runs — it will not fractionate. Weigh it anyway.",
-      "Capillary systems live or die by the weight. TXV systems forgive a little, but the nameplate is still the target.",
-    );
-  }
-  if (a2l && r.id !== "R-717") steps.push(`${r.safety}. Weigh to the nameplate and stay inside the charge limit for that unit and that room.`);
-  if (LOW_STAGE.has(r.id)) steps.push("This is a low-stage fluid. Charge that stage alone, by weight, after a deep vacuum. Don't use the high-stage chart, and don't move gas between stages.");
-  return { title, steps, places: bubblePlaces(r, zeo, near, gK, gF) };
-}
-
-function bubblePlaces(r, zeo, near, gK, gF) {
-  if (r.id === "R-744") {
-    return [
-      ["Evaporator", "Below the critical point, R-744 has one saturation temperature. Bubble and dew are the same. Superheat is the outlet temperature minus that temperature, at the outlet pressure."],
-      ["Condenser or gas cooler", "If the high side stays below 31 °C, subcooling is real: saturation temperature minus liquid-line temperature. Above 31 °C there is no bubble point and no dew point. The gas-cooler outlet is dense gas, not subcooled liquid."],
-      ["Compressor", "Suction and discharge are vapor only, so bubble and dew do not apply. Read superheat at the evaporator outlet, not at the compressor, when the suction line is long."],
-    ];
-  }
-  if (r.id === "R-717") {
-    return [
-      ["One temperature", "Ammonia is a pure fluid. At a given pressure, bubble point and dew point are the same number."],
-      ["DX evaporator", "Superheat is the outlet temperature minus the saturation temperature at the outlet pressure. Use the evaporator outlet, not the compressor."],
-      ["Flooded or overfeed coil", "The coil is kept wet on purpose. There is no useful superheat. Watch receiver or level-column level, and the pressure."],
-      ["Condenser and liquid line", "Subcooling is the saturation temperature minus the liquid-line temperature, at the liquid-line pressure."],
-    ];
-  }
-  if (zeo) {
-    return [
-      ["Two temperatures", `At one pressure, ${r.id} starts boiling at the bubble point and finishes at the dew point. That gap is the glide, about ${gK} K (${gF} °F).`],
-      ["Evaporator", "Pressure stays about steady while the temperature glides up from the bubble point at the inlet to the dew point at the outlet. Superheat is outlet temperature minus the dew point at the outlet pressure. The bubble column makes superheat look too high."],
-      ["Condenser", "Hot vapor starts condensing at the dew point and the last vapor disappears at the bubble point, so the temperature glides down. Subcooling is the bubble point minus the liquid-line temperature. The dew column makes subcooling look too high."],
-      ["Compressor and liquid line", "No boiling or condensing there. The compressor sees superheated vapor. The liquid line should already be cooler than the bubble point. Read the pressure at the same place you read the temperature."],
-    ];
-  }
-  if (near) {
-    return [
-      ["Almost one temperature", `${r.id} glides about ${gK} K (${gF} °F). Bubble and dew are close enough for a rough check on either column.`],
-      ["Evaporator", "The careful reading uses the dew (vapor) side: superheat is outlet temperature minus dew point at the outlet pressure."],
-      ["Condenser and liquid line", "The careful reading uses the bubble (liquid) side: subcooling is bubble point minus liquid-line temperature, at the liquid-line pressure."],
-      ["If you swap them", "Swapping bubble and dew only costs you about the glide. On a high-glide blend that shortcut is wrong. Here the error is small."],
-    ];
-  }
-  return [
-    ["One temperature", `${r.id} is a pure fluid. At a given pressure, bubble point and dew point are the same number. This chart has one column.`],
-    ["Evaporator", "Liquid starts boiling at the metering device and finishes at the outlet. Superheat is how much warmer the outlet vapor is than the saturation temperature at the outlet pressure."],
-    ["Condenser and liquid line", "Vapor finishes condensing at that same saturation temperature. Subcooling is how much cooler the liquid line is than the saturation temperature at the liquid-line pressure."],
-    ["Compressor", "No phase change. It only sees superheated vapor. A reading at the compressor is not the coil's superheat if the suction line picked up heat."],
-  ];
-}
-
-
-function phasePicture(r) {
-  const glideK = r.glide || 0;
-  const glide = Boolean(r.pd) && glideK >= 0.4;
-  const near = r.kind === "blend" && !glide;
-  const mode = r.id === "R-744" ? "co2" : glide ? "glide" : near ? "near" : "pure";
-  const clamp = (t) => Math.min(tMax(r) - 0.4, Math.max(r.t0 + 0.4, t));
-  const sideAt = (target) => {
-    const t = clamp(target);
-    const pressure = pressureAt(r, t, "d") ?? pressureAt(r, t, "b");
-    if (pressure == null) return null;
-    const dew = tempAt(r, pressure, "d");
-    const bubble = tempAt(r, pressure, "b");
-    if (dew == null || bubble == null) return null;
-    return { bubble, dew, pressure };
-  };
-  const highTarget = r.tcrit != null ? Math.min(38, r.tcrit - 4) : 38;
-  return {
-    mode,
-    glideK,
-    low: sideAt(4),
-    high: sideAt(highTarget),
-    tcrit: r.tcrit,
-    showCriticalEnd: Boolean(r.critExact && r.tcrit != null && r.tcrit < 36),
-  };
-}
-
-function arrowPath(x, y, dir) {
-  if (dir === "right") return `M ${x - 5} ${y - 6} L ${x + 7} ${y} L ${x - 5} ${y + 6}`;
-  if (dir === "left") return `M ${x + 5} ${y - 6} L ${x - 7} ${y} L ${x + 5} ${y + 6}`;
-  if (dir === "up") return `M ${x - 6} ${y + 5} L ${x} ${y - 7} L ${x + 6} ${y + 5}`;
-  return `M ${x - 6} ${y - 5} L ${x} ${y + 7} L ${x + 6} ${y - 5}`;
-}
-
-function dot(x, y, kind) {
-  const fill = kind === "bubble" ? "var(--brand)" : "var(--dew)";
-  return `<circle cx="${x}" cy="${y}" r="7" fill="${fill}" stroke="var(--surface)" stroke-width="2"/>`;
-}
-
-function labelAnchor(x) {
-  if (x < 96) return { x: 4, anchor: "start" };
-  if (x > 264) return { x: 356, anchor: "end" };
-  return { x, anchor: "middle" };
-}
-
-function loopSvg(mode) {
-  const split = mode === "glide";
-  const uid = split ? "glide" : "same";
-  const pipe = (x1, y1, x2, y2, stroke) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${stroke}" stroke-width="8" stroke-linecap="round"/>`;
-  const end = split ? ["Dew", "Bubble"] : ["Sat", "Sat"];
-  return `<svg viewBox="0 0 360 214" role="img" aria-label="Refrigeration loop showing bubble and dew points">
-    <defs>
-      <linearGradient id="${uid}-cond" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="var(--dew)"/><stop offset="1" stop-color="var(--brand)"/></linearGradient>
-      <linearGradient id="${uid}-evap" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stop-color="var(--brand)"/><stop offset="1" stop-color="var(--dew)"/></linearGradient>
-    </defs>
-    <circle cx="14" cy="14" r="5" fill="var(--brand)"/>
-    <text x="24" y="18" fill="var(--muted)" font-size="12">Bubble, liquid</text>
-    <circle cx="148" cy="14" r="5" fill="var(--dew)"/>
-    <text x="158" y="18" fill="var(--muted)" font-size="12">Dew, vapor</text>
-    <text x="180" y="46" text-anchor="middle" fill="var(--ink)" font-size="13" font-weight="600">Condenser</text>
-    ${pipe(86, 70, 274, 70, split ? `url(#${uid}-cond)` : "var(--brand)")}
-    <path d="${arrowPath(180, 70, "right")}" fill="var(--ink)"/>
-    ${dot(86, 70, "dew")}${dot(274, 70, "bubble")}
-    <text x="86" y="58" text-anchor="middle" fill="var(--dew)" font-size="11" font-weight="600">${end[0]}</text>
-    <text x="274" y="58" text-anchor="middle" fill="var(--brand)" font-size="11" font-weight="600">${end[1]}</text>
-    ${pipe(86, 70, 86, 156, "var(--line)")}
-    <path d="${arrowPath(86, 112, "up")}" fill="var(--ink)"/>
-    ${pipe(274, 70, 274, 156, "var(--line)")}
-    <path d="${arrowPath(274, 112, "down")}" fill="var(--ink)"/>
-    <text x="132" y="118" text-anchor="middle" fill="var(--muted)" font-size="12">Compressor</text>
-    <text x="228" y="118" text-anchor="middle" fill="var(--muted)" font-size="12">TXV</text>
-    <text x="180" y="196" text-anchor="middle" fill="var(--ink)" font-size="13" font-weight="600">Evaporator</text>
-    ${pipe(86, 156, 274, 156, split ? `url(#${uid}-evap)` : "var(--brand)")}
-    <path d="${arrowPath(180, 156, "left")}" fill="var(--ink)"/>
-    ${dot(274, 156, "bubble")}${dot(86, 156, "dew")}
-    <text x="274" y="176" text-anchor="middle" fill="var(--brand)" font-size="11" font-weight="600">${end[1]}</text>
-    <text x="86" y="176" text-anchor="middle" fill="var(--dew)" font-size="11" font-weight="600">${end[0]}</text>
-  </svg>`;
-}
-
-function trackSvg(title, hint, side, flow, glideK, mode) {
-  const left = 28, right = 332, y = 46;
-  const same = !side || Math.abs(side.dew - side.bubble) < 0.35;
-  const span = 14;
-  const mid = side ? (side.bubble + side.dew) / 2 : 0;
-  const xOf = (t) => left + ((t - (mid - span / 2)) / span) * (right - left);
-  const bubbleX = side && !same ? Math.min(right - 16, Math.max(left + 16, xOf(side.bubble))) : (left + right) / 2;
-  const dewX = side && !same ? Math.min(right - 16, Math.max(left + 16, xOf(side.dew))) : (left + right) / 2;
-  const goingRight = flow === "evap" ? dewX >= bubbleX : bubbleX >= dewX;
-  let body = `<line x1="${left}" y1="${y}" x2="${right}" y2="${y}" stroke="var(--chip)" stroke-width="8" stroke-linecap="round"/>`;
-  if (!same) {
-    body += `<line x1="${Math.min(bubbleX, dewX)}" y1="${y}" x2="${Math.max(bubbleX, dewX)}" y2="${y}" stroke="var(--brand)" stroke-width="8" stroke-linecap="round"/>`;
-  }
-  if (side && same) {
-    body += `${dot((left + right) / 2, y, "bubble")}
-      <text x="${(left + right) / 2}" y="28" text-anchor="middle" fill="var(--ink)" font-size="12" font-weight="600">${mode === "near" ? `Bubble ≈ dew · ${glideK.toFixed(1)} K glide` : "Bubble = dew"}</text>
-      <text x="${(left + right) / 2}" y="96" text-anchor="middle" fill="var(--muted)" font-size="12">${esc(formatT(side.bubble, state.tUnit))} · ${esc(formatP(side.pressure, state.pUnit))}</text>`;
-  } else if (side) {
-    const b = labelAnchor(bubbleX);
-    const d = labelAnchor(dewX);
-    body += `${dot(bubbleX, y, "bubble")}${dot(dewX, y, "dew")}
-      <path d="${arrowPath((bubbleX + dewX) / 2, y, goingRight ? "right" : "left")}" fill="var(--ink)"/>
-      <text x="${b.x}" y="16" text-anchor="${b.anchor}" fill="var(--brand)" font-size="12" font-weight="600">Bubble</text>
-      <text x="${b.x}" y="32" text-anchor="${b.anchor}" fill="var(--ink)" font-size="12">${esc(formatT(side.bubble, state.tUnit))}</text>
-      <text x="${d.x}" y="78" text-anchor="${d.anchor}" fill="var(--dew)" font-size="12" font-weight="600">Dew ${esc(formatT(side.dew, state.tUnit))}</text>
-      <text x="180" y="100" text-anchor="middle" fill="var(--muted)" font-size="12">${esc(`${(side.dew - side.bubble).toFixed(1)} K glide · ${formatP(side.pressure, state.pUnit)}`)}</text>`;
-  } else {
-    body += `<text x="180" y="52" text-anchor="middle" fill="var(--muted)" font-size="12">No saturation at this example</text>`;
-  }
-  const evapHint = mode === "glide" ? "Boils from bubble toward dew" : "Bubble and dew are the same point";
-  const condHint = mode === "glide" ? "Condenses from dew toward bubble" : "One saturation temperature";
-  return `<p class="kicker">${esc(title)}</p><p class="fine" style="margin-top:0">${flow === "evap" ? evapHint : condHint}</p>
-    <svg viewBox="0 0 360 108" role="img" aria-label="${esc(title)}">${body}</svg>`;
-}
-
-function diagramsHtml(r) {
-  const phase = phasePicture(r);
-  const note = phase.showCriticalEnd && phase.tcrit != null
-    ? `<p class="fine">Above ${esc(bothT(phase.tcrit))} the markers disappear. There is no bubble point and no dew point.</p>`
-    : "";
-  return `${loopSvg(phase.mode)}
-    ${trackSvg("Evaporator, one pressure", "", phase.low, "evap", phase.glideK, phase.mode)}
-    ${trackSvg("Condenser, one pressure", "", phase.high, "cond", phase.glideK, phase.mode)}
-    ${note}`;
-}
-
-function renderCharge(r) {
-  const guide = chargeGuide(r);
-  $("charge").innerHTML = `<h2>${esc(guide.title)}</h2>
-    <ol>${guide.steps.map((step) => `<li>${esc(step)}</li>`).join("")}</ol>
-    <h2>Bubble and dew through the system</h2>
-    ${diagramsHtml(r)}
-    ${guide.places.map(([where, what]) => `<div class="place"><dt>${esc(where)}</dt><dd>${esc(what)}</dd></div>`).join("")}
-    <p class="fine">Training guidance. The nameplate and the OEM charging procedure win.</p>`;
+  const a3 = (r.safety === "A3" || r.safety === "A2");
+  let note = "";
+  if (r.id === "R-744") note = "Charge R-744 by weight, not by the gauge. Evacuate the circuit. Break the vacuum with CO2 only — don't leave nitrogen or air in it. Weigh liquid CO2 in from the cylinder. A warm idle vessel is already hundreds of psig, so the gauge cannot tell you the charge. On a transcritical rack, once the gas-cooler outlet is above 31 °C (88 °F) there is no condenser and no subcooling. Stop at the OEM charge weight. On a subcritical cascade low stage, set evaporator superheat from this one saturation line, and keep that stage's high side below the critical point.";
+  else if (a3) note = "Hydrocarbons are weighed in grams, to the nameplate. Do not top off by gauge.";
+  else if (r.id === "R-717") note = "Ammonia is weighed as liquid. A flooded coil is watched by level, not superheat.";
+  else if (zeo) note = "Blends with glide leave the cylinder as liquid only. Do not top off by gauge after a leak. Superheat uses the dew point at the evaporator outlet. Subcooling uses the bubble point in the liquid line.";
+  else if (near) note = "Near-azeotropes are still charged as liquid. Bubble and dew are only a fraction of a degree apart.";
+  else note = "Pure fluids have one saturation temperature. Weigh the charge. Superheat and subcooling both use that same number.";
+  return note;
 }
 
 function renderFacts(r) {
-  const room = pressureAt(r, 25, "b");
-  const items = [];
-  if (r.safety) items.push(["Safety", r.safety]);
-  if (r.gwp != null) items.push(["GWP 100", r.gwp.toLocaleString()]);
-  if (r.tcrit != null) items.push([r.critExact ? "Critical" : "Curve ends", bothT(r.tcrit)]);
-  if (r.tnbp != null) items.push(["Boiling point", bothT(r.tnbp)]);
-  else if (r.id === "R-744") items.push(["Boiling point", "None — it sublimes"]);
-  if (r.ttriple != null) items.push(["Triple point", bothT(r.ttriple)]);
-  if (r.kind === "blend") items.push(["Glide", r.glide < 0.4 ? `${r.glide.toFixed(1)} K, near-azeotrope` : `${r.glide.toFixed(1)} K`]);
-  items.push(["25 °C standstill", room != null ? formatP(room, "psig") : "No liquid at room temperature"]);
+  const groups = (r.groups || []).join(", ");
   $("facts").innerHTML = `
-    <div class="facts-head"><span>${esc(r.id)}</span><em>${esc(r.comp || "")}</em></div>
-    ${r.trade && r.trade !== r.name ? `<p class="fine">Also called ${esc(r.trade)}.</p>` : ""}
-    <p class="sub">${esc(usedIn(r.groups))}</p>
-    <dl>${items.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl>
-    ${r.approx ? `<div class="banner note">Mixture interaction data for this blend is estimated. Use it for training and confirm the OEM chart.</div>` : ""}`;
-}
-
-function matches(r, query) {
-  const tokens = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
-  if (!tokens.length) return true;
-  const hay = `${r.id} ${r.name} ${r.comp} ${r.trade} ${r.safety} ${(r.groups || []).join(" ")}`.toLowerCase();
-  const tight = hay.replace(/[^a-z0-9]/g, "");
-  return tokens.every((t) => hay.includes(t) || tight.includes(t.replace(/[^a-z0-9]/g, "")));
-}
-function shown() {
-  const pool = state.query.trim()
-    ? refs
-    : state.filter === "all" ? refs : state.filter === "common" ? refs.filter((r) => r.common) : refs.filter((r) => (r.groups || []).includes(state.filter));
-  return pool.filter((r) => matches(r, state.query));
-}
-function renderPicker() {
-  $("chips").innerHTML = FILTERS.map(([id, label]) => `<button type="button" class="chip ${!state.query.trim() && state.filter === id ? "on" : ""}" data-filter="${id}">${label}</button>`).join("");
-  const list = shown();
-  $("count").textContent = state.query.trim() ? "Searching every refrigerant" : `${list.length} in this group`;
-  const cur = current();
-  $("list").innerHTML = list.length
-    ? list.map((r) => `<li><button type="button" data-id="${esc(r.id)}" class="${r.id === cur.id ? "current" : ""}"><span class="rid">${esc(r.id)}</span><span style="min-width:0;flex:1"><span class="rname">${esc(r.name)}</span><span class="rcomp">${esc(r.comp || "")}</span></span>${r.safety ? `<span class="safety ${tone(r.safety)}">${esc(r.safety)}</span>` : ""}</button></li>`).join("")
-    : `<li class="fine" style="padding:16px">No refrigerant matches that.</li>`;
-}
-
-function render() {
-  const r = current();
-  $("subtitle").textContent = `Saturation lookup for ${refs.length} refrigerants. Training values — confirm the OEM chart.`;
-  $("refId").textContent = r.id;
-  $("refMeta").textContent = [r.name, r.safety, r.gwp != null ? `GWP ${r.gwp.toLocaleString()}` : ""].filter(Boolean).join(" · ");
-  $("theme").textContent = document.documentElement.classList.contains("dark") ? "☀" : "☾";
-  ["lookup", "chart", "coil"].forEach((tab) => {
-    $(`panel-${tab}`).hidden = state.tab !== tab;
-    document.querySelector(`[data-tab="${tab}"]`).classList.toggle("on", state.tab === tab);
-  });
-  if (state.tab === "lookup") renderLookup(r);
-  if (state.tab === "chart") renderChart(r);
-  if (state.tab === "coil") renderCoil(r);
-  renderFacts(r);
-  renderCharge(r);
-  $("legal").textContent = `Curves are saturation pressures from reference equations of state. Zeotropic blends show liquid and vapor separately.${r.approx ? " This blend’s mixture data is estimated." : ""} A static vessel with liquid in it follows the liquid line at room temperature. Confirm the cylinder and the OEM chart before you set a control or open a system.`;
-  if (!$("sheet").hidden) renderPicker();
-}
-
-function selectRef(id) {
-  state.id = id;
-  const r = current();
-  if (state.coilSeeded) {
-    const pa = pressureAt(r, -10, "d");
-    if (pa != null) {
-      const dew = tempAt(r, pa, "d") ?? -10;
-      const shownT = state.coilTU === "F" ? cToF(dew + 6) : dew + 6;
-      state.coilT = shownT.toFixed(1);
-      state.coilP = fromPa(pa, state.coilPU).toFixed(state.coilPU.startsWith("psi") ? 1 : 2);
-    }
-  }
-  state.coilSeeded = true;
-  try {
-    localStorage.setItem("ref-pt-id", id);
-  } catch (e) {}
-  $("sheet").hidden = true;
-  state.query = "";
-  $("query").value = "";
-  render();
+    <div class="facts-head"><span class="rid">${esc(r.id)}</span><em>${esc(r.name || "")}</em></div>
+    <p class="fine">${esc(usedIn(r.groups))}</p>
+    <dl>
+      <div><dt>Safety</dt><dd class="safety ${tone(r.safety)}">${esc(r.safety || "—")}</dd></div>
+      <div><dt>GWP 100</dt><dd>${esc(r.gwp ?? "—")}</dd></div>
+      <div><dt>Critical</dt><dd>${r.tcrit != null ? bothT(r.tcrit) : "—"}</dd></div>
+      <div><dt>Boiling point</dt><dd>${r.tb != null ? bothT(r.tb) : "None — it sublimes"}</dd></div>
+      ${r.ttriple != null ? `<div><dt>Triple point</dt><dd>${bothT(r.ttriple)}</dd></div>` : ""}
+      <div><dt>25 °C standstill</dt><dd>${r.p25 != null ? formatP(r.p25, "psig") : "—"}</dd></div>
+    </dl>`;
+  $("charge").innerHTML = `<h2>Charge ${esc(r.id)}</h2><ol>${chargeGuide(r).split(". ").filter(Boolean).map(s => `<li>${esc(s)}.</li>`).join("")}</ol>`;
+  $("legal").textContent = "Training guidance. The nameplate and the OEM charging procedure win.";
 }
 
 function bind() {
@@ -697,12 +415,26 @@ function bind() {
     const filter = event.target.closest("[data-filter]");
     if (filter) { state.filter = filter.dataset.filter; state.query = ""; $("query").value = ""; renderPicker(); return; }
     const pick = event.target.closest("[data-id]");
-    if (pick) { selectRef(pick.dataset.id); return; }
+    if (pick && $("sheet").contains(pick)) {
+      state.id = pick.dataset.id;
+      $("sheet").hidden = true;
+      render();
+      return;
+    }
     if (event.target.id === "logBtn") { state.logScale = !state.logScale; render(); }
   });
   document.body.addEventListener("input", (event) => {
     const id = event.target.id;
     if (["temp", "press", "coilP", "coilT"].includes(id)) { state[id] = event.target.value; paintLive(); }
+  });
+  document.body.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-sign]");
+    if (!btn) return;
+    const id = btn.dataset.sign;
+    const cur = state[id] || "";
+    const next = cur.startsWith("-") ? cur.slice(1) : (cur === "" ? "-" : "-" + cur);
+    state[id] = next;
+    paintLive();
   });
   document.body.addEventListener("change", (event) => {
     const id = event.target.id;
@@ -750,26 +482,45 @@ function paintLive() {
 }
 
 async function boot() {
-  const standalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
   if (standalone) $("install").hidden = true;
-  const response = await fetch("./data/refrigerants.json");
-  refs = await response.json();
   try {
-    const savedId = localStorage.getItem("ref-pt-id");
-    const savedT = localStorage.getItem("ref-pt-tunit");
-    const savedP = localStorage.getItem("ref-pt-punit");
-    if (savedId && refs.some((r) => r.id === savedId)) state.id = savedId;
-    if (savedT === "C" || savedT === "F") state.tUnit = savedT;
-    if (["barabs", "barg", "psia", "psig"].includes(savedP)) state.pUnit = savedP;
+    const t = localStorage.getItem("ref-pt-tunit");
+    const p = localStorage.getItem("ref-pt-punit");
+    if (t) state.tUnit = t;
+    if (p) state.pUnit = p;
   } catch (e) {}
-  state.coilSeeded = true;
+  const res = await fetch("data/refrigerants.json");
+  refs = await res.json();
   bind();
   render();
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("./sw.js", { scope: "./" }).catch(() => {});
-  }
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
 }
-boot().catch((error) => {
-  $("subtitle").textContent = "Could not load refrigerant data.";
-  console.error(error);
-});
+function render() {
+  const r = current();
+  $("refId").textContent = r.id;
+  $("refMeta").textContent = `${r.name || ""} · ${r.safety || ""} · GWP ${r.gwp ?? ""}`;
+  $("panel-lookup").hidden = state.tab !== "lookup";
+  $("panel-chart").hidden = state.tab !== "chart";
+  $("panel-coil").hidden = state.tab !== "coil";
+  document.querySelectorAll("[data-tab]").forEach((b) => b.classList.toggle("on", b.dataset.tab === state.tab));
+  if (state.tab === "lookup") renderLookup(r);
+  else if (state.tab === "chart") renderChart(r);
+  else if (state.tab === "coil") renderCoil(r);
+  renderFacts(r);
+}
+function renderPicker() {
+  const q = (state.query || "").toLowerCase();
+  const chips = FILTERS.map(([id, name]) => `<button type="button" class="chip ${state.filter === id ? "on" : ""}" data-filter="${id}">${name}</button>`).join("");
+  $("chips").innerHTML = chips;
+  const list = refs.filter((r) => {
+    if (state.filter !== "all" && state.filter !== "common" && !(r.groups || []).includes(state.filter)) return false;
+    if (state.filter === "common" && !(r.common || r.groups?.includes("common"))) return false;
+    if (!q) return true;
+    const hay = `${r.id} ${r.name || ""} ${r.trade || ""} ${r.comp || ""}`.toLowerCase();
+    return hay.includes(q);
+  });
+  $("count").textContent = `${list.length} refrigerants`;
+  $("list").innerHTML = list.map((r) => `<li><button type="button" data-id="${esc(r.id)}" class="${r.id === state.id ? "current" : ""}"><span class="rid">${esc(r.id)}</span><span><span class="rname">${esc(r.name || r.id)}</span><span class="rcomp">${esc(r.comp || r.trade || "")}</span></span><span class="safety ${tone(r.safety)}">${esc(r.safety || "")}</span></button></li>`).join("");
+}
+boot();
