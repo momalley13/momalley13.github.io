@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Refrigerant PT</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Refrigerant PT">
+<meta name="theme-color" content="#1B365D">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+  :root {
+    --bg: #f4f1ea;
+    --surface: #fffcf7;
+    --ink: #1b2830;
+    --muted: #5c6b76;
+    --line: #e2e6e4;
+    --navy: #1b365d;
+    --brand: #0f6e6b;
+    --brand-ink: #f7fffe;
+    --soft: #e7f2f1;
+    --warn: #fdecea;
+    --warn-fg: #8a2a22;
+    --note: #fff6e8;
+    --note-fg: #7a5310;
+    --header: #ffffff;
+    --header-sub: #c9d6de;
+    --dew: #1b365d;
+    --chip: #e8eeef;
+    color-scheme: light;
+  }
+  :root.dark {
+    --bg: #0e1418;
+    --surface: #172026;
+    --ink: #e7eef2;
+    --muted: #93a3ad;
+    --line: #2a3840;
+    --navy: #12283f;
+    --brand: #1f8f86;
+    --brand-ink: #f3fffd;
+    --soft: #1c3336;
+    --warn: #3a2220;
+    --warn-fg: #ffc7c0;
+    --note: #3a301c;
+    --note-fg: #f3d7a1;
+    --header: #f4f7f8;
+    --header-sub: #b7c6d0;
+    --dew: #9ec0dc;
+    --chip: #243038;
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not(.light) {
+      --bg: #0e1418; --surface: #172026; --ink: #e7eef2; --muted: #93a3ad;
+      --line: #2a3840; --navy: #12283f; --brand: #1f8f86; --brand-ink: #f3fffd;
+      --soft: #1c3336; --warn: #3a2220; --warn-fg: #ffc7c0; --note: #3a301c;
+      --note-fg: #f3d7a1; --header: #f4f7f8; --header-sub: #b7c6d0; --dew: #9ec0dc;
+      --chip: #243038; color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  button, select, input { font: inherit; }
+  button { cursor: pointer; }
+  header { background: var(--navy); color: var(--header); }
+  .head {
+    max-width: 720px; margin: 0 auto;
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+    padding: 16px 16px 14px;
+  }
+  h1 { margin: 0; font-size: 20px; font-weight: 650; letter-spacing: -0.02em; }
+  header p { margin: 4px 0 0; font-size: 13px; color: var(--header-sub); line-height: 1.35; }
+  .icon-btn {
+    width: 44px; height: 44px; border: 0; border-radius: 10px;
+    background: rgba(255,255,255,.12); color: white; font-size: 18px; flex: none;
+  }
+  main { max-width: 720px; margin: 0 auto; padding: 12px; }
+  .card, .picker-btn {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  }
+  .picker-btn {
+    width: 100%; display: flex; align-items: center; gap: 12px;
+    padding: 12px; text-align: left; color: inherit;
+  }
+  .badge {
+    width: 44px; height: 44px; border-radius: 10px; background: var(--soft); color: var(--brand);
+    display: grid; place-items: center; font-weight: 700; flex: none;
+  }
+  .ref-id { display: block; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 18px; font-weight: 700; }
+  .ref-meta { display: block; font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .change { color: var(--brand); font-size: 14px; font-weight: 700; flex: none; }
+  .tabs, .modes, .steps { display: flex; gap: 6px; }
+  .tabs { margin: 12px 0; }
+  .tabs button, .modes button, .steps button, .chip, .log-btn {
+    border: 0; border-radius: 8px; background: var(--chip); color: var(--ink); font-weight: 650; font-size: 14px;
+  }
+  .tabs button { flex: 1; padding: 10px; }
+  .modes { margin-bottom: 4px; }
+  .modes button { flex: 1; padding: 10px 8px; }
+  .tabs button.on, .modes button.on, .steps button.on, .chip.on, .log-btn.on {
+    background: var(--brand); color: var(--brand-ink);
+  }
+  .card { padding: 12px; }
+  label { display: block; margin-top: 12px; }
+  label span { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .row { display: flex; gap: 8px; }
+  input, select {
+    border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink);
+    padding: 12px; font-size: 18px;
+  }
+  input { flex: 1; min-width: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  select { width: 118px; flex: none; font-size: 14px; }
+  .result { margin-top: 12px; background: var(--soft); border-radius: 12px; padding: 12px; }
+  .kicker { margin: 0; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); font-weight: 650; }
+  .big { margin: 2px 0 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 20px; font-weight: 700; }
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .sub { margin: 8px 0 0; font-size: 14px; }
+  .fine { margin: 4px 0 0; font-size: 13px; color: var(--muted); line-height: 1.4; }
+  .banner { margin-top: 8px; border-radius: 8px; padding: 8px 10px; font-size: 13px; line-height: 1.35; }
+  .banner.warn { background: var(--warn); color: var(--warn-fg); }
+  .banner.note { background: var(--note); color: var(--note-fg); }
+  .chart-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .log-btn { padding: 8px 12px; }
+  canvas { width: 100%; height: 220px; display: block; }
+  .steps { margin-top: 10px; }
+  .steps button { padding: 8px 12px; }
+  .table-wrap { margin-top: 12px; max-height: 320px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { position: sticky; top: 0; text-align: left; background: var(--navy); color: var(--header); padding: 8px; }
+  td { padding: 6px 8px; border-top: 1px solid var(--line); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  tr.mark td { background: var(--soft); font-weight: 700; }
+  .facts { margin-top: 12px; }
+  .facts-head { display: flex; gap: 8px; align-items: baseline; font-size: 14px; font-weight: 700; }
+  .facts-head em { font-style: normal; font-weight: 400; color: var(--muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  dl { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin: 10px 0 0; }
+  dt { font-size: 12px; color: var(--muted); }
+  dd { margin: 0; font-size: 14px; font-weight: 600; }
+  .legal { padding: 4px 4px 28px; font-size: 12px; color: var(--muted); line-height: 1.45; }
+  .install {
+    margin: 0 0 12px; background: var(--note); color: var(--note-fg);
+    border-radius: 10px; padding: 10px 12px; font-size: 13px; line-height: 1.4;
+  }
+  .sheet {
+    position: fixed; inset: 0; background: rgba(16, 24, 32, .45);
+    display: flex; align-items: flex-end; justify-content: center; z-index: 20;
+  }
+  .sheet[hidden] { display: none; }
+  .sheet-card {
+    width: 100%; max-width: 520px; max-height: 92vh; background: var(--surface);
+    border-radius: 16px 16px 0 0; display: flex; flex-direction: column;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .search {
+    display: flex; align-items: center; gap: 8px; padding: 12px;
+    border-bottom: 1px solid var(--line);
+  }
+  .search input { border: 0; background: transparent; padding: 8px 0; font-family: inherit; font-size: 16px; }
+  .chips { display: flex; gap: 8px; overflow-x: auto; padding: 8px 12px; scrollbar-width: none; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip { flex: none; border-radius: 999px; padding: 6px 12px; }
+  .count { margin: 0; padding: 0 14px 6px; font-size: 12px; color: var(--muted); }
+  #list { list-style: none; margin: 0; padding: 0 8px 16px; overflow: auto; }
+  #list button {
+    width: 100%; display: flex; gap: 10px; align-items: center;
+    border: 0; background: transparent; color: inherit; text-align: left;
+    border-radius: 8px; padding: 10px 8px;
+  }
+  #list button.current { background: var(--soft); }
+  .rid { width: 92px; flex: none; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 700; font-size: 13px; }
+  .rname { display: block; font-size: 14px; }
+  .rcomp { display: block; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .safety { flex: none; border-radius: 6px; padding: 2px 6px; font-size: 12px; font-weight: 700; background: var(--chip); }
+  .safety.warn { background: var(--warn); color: var(--warn-fg); }
+  .safety.note { background: var(--note); color: var(--note-fg); }
+  @media (min-width: 640px) {
+    .sheet { align-items: center; padding: 24px; }
+    .sheet-card { border-radius: 16px; max-height: 80vh; }
+  }
+</style>
+<script>
+try {
+  var saved = localStorage.getItem("ref-pt-theme");
+  var dark = saved ? saved === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  document.documentElement.classList.add(dark ? "dark" : "light");
+} catch (e) {}
+</script>
+</head>
+<body>
+<header>
+  <div class="head">
+    <div>
+      <h1>Refrigerant PT</h1>
+      <p id="subtitle">Saturation lookup. Training values — confirm the OEM chart.</p>
+    </div>
+    <button class="icon-btn" id="theme" type="button" aria-label="Switch theme">◐</button>
+  </div>
+</header>
+<main>
+  <p class="install" id="install">On iPhone: tap Share, then Add to Home Screen. It stays on your phone and works offline after this first open.</p>
+  <button class="picker-btn" id="openPicker" type="button">
+    <span class="badge">PT</span>
+    <span style="min-width:0;flex:1">
+      <span class="ref-id" id="refId">…</span>
+      <span class="ref-meta" id="refMeta"></span>
+    </span>
+    <span class="change">Change</span>
+  </button>
+  <div class="tabs" id="tabs">
+    <button type="button" data-tab="lookup" class="on">Lookup</button>
+    <button type="button" data-tab="chart">Chart</button>
+    <button type="button" data-tab="coil">Coil</button>
+  </div>
+  <section class="card" id="panel-lookup"></section>
+  <section class="card" id="panel-chart" hidden></section>
+  <section class="card" id="panel-coil" hidden></section>
+  <section class="card facts" id="facts"></section>
+  <p class="legal" id="legal"></p>
+</main>
+<div class="sheet" id="sheet" hidden>
+  <div class="sheet-card" role="dialog" aria-modal="true" aria-label="Choose a refrigerant">
+    <div class="search">
+      <input id="query" placeholder="R-404A, Puron, propane, N40…" aria-label="Search refrigerants" enterkeyhint="search">
+      <button class="icon-btn" id="closePicker" type="button" aria-label="Close" style="background:transparent;color:inherit">✕</button>
+    </div>
+    <div class="chips" id="chips"></div>
+    <p class="count" id="count"></p>
+    <ul id="list"></ul>
+  </div>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
