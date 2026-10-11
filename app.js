@@ -366,6 +366,116 @@ function drawChart(r, activeC) {
   g.fillText(`°${state.tUnit}`, w / 2 - 8, h - 6);
 }
 
+
+const LOW_STAGE = new Set(["R-13", "R-13B1", "R-14", "R-23", "R-50", "R-170", "R-503", "R-508A", "R-508B", "R-1150"]);
+
+function chargeGuide(r) {
+  const glide = r.glide || 0;
+  const zeo = Boolean(r.pd) && glide >= 0.4;
+  const near = r.kind === "blend" && !zeo;
+  const a3 = (r.safety || "").startsWith("A3");
+  const a2l = (r.safety || "").includes("2L");
+  const gK = glide.toFixed(1);
+  const gF = (glide * 1.8).toFixed(1);
+  const steps = [];
+  let title = `Charge ${r.id} by weight`;
+  if (r.id === "R-744") {
+    title = "Charge R-744 by weight, not by the gauge";
+    steps.push(
+      "Evacuate the circuit. Break the vacuum with CO2 only — don't leave nitrogen or air in it.",
+      "Weigh liquid CO2 in from the cylinder. A warm idle vessel is already hundreds of psig, so the gauge cannot tell you the charge.",
+      "On a transcritical rack, once the gas-cooler outlet is above 31 °C (88 °F) there is no condenser and no subcooling. Stop at the OEM charge weight.",
+      "On a subcritical cascade low stage, set evaporator superheat from this one saturation line, and keep that stage's high side below the critical point.",
+    );
+  } else if (r.id === "R-717") {
+    title = "Charge R-717 as liquid, by weight";
+    steps.push(
+      "Use the ammonia charging procedure and a clean ammonia-rated hose. This is not a halocarbon gauge job.",
+      "Weigh liquid into the high side or the receiver. A flooded or overfeed plant is charged to operating level, not to a DX superheat.",
+      "A DX ammonia coil still uses this single saturation temperature for superheat. Don't borrow a halocarbon target.",
+    );
+  } else if (a3) {
+    title = `Charge ${r.id} by weight, in grams`;
+    steps.push(
+      `Evacuate, then weigh liquid ${r.id} in. The nameplate is the limit — domestic hydrocarbon cabinets are often 150 g or less.`,
+      "Do not charge to a pressure, a frost line, or a superheat number. A few grams high overcharges a capillary.",
+      "No ignition sources, and don't vent it into the room. A3 means it burns.",
+    );
+    if (zeo) steps.push("It is also a blend: only liquid may leave the cylinder. Vapor charging changes the mix.");
+  } else if (zeo) {
+    title = `Charge ${r.id} as liquid only`;
+    steps.push(
+      "Invert the cylinder or open the liquid valve. If vapor leaves first, the light component boils off and the charge no longer matches this chart.",
+      "Weigh it in. After a leak, do not top off by gauge — the vapor that escaped is a different mixture. Recover and weigh a fresh charge when you don't know what left.",
+      "If you feed the low side while it runs, throttle the liquid so the compressor doesn't slug. Skip that if the OEM forbids it.",
+    );
+  } else if (near) {
+    title = `Charge ${r.id} as liquid, by weight`;
+    steps.push(
+      `Glide is only ${gK} K, but it is still a blend. Take liquid from the cylinder and weigh it.`,
+      "A small top-off shifts this mix less than a high-glide blend. After a real leak, recover and weigh a fresh charge.",
+    );
+  } else {
+    steps.push(
+      "Evacuate, then weigh liquid into the high side with the system off. That is the accurate charge.",
+      "A pure fluid can be added as vapor into the suction side while it runs — it will not fractionate. Weigh it anyway.",
+      "Capillary systems live or die by the weight. TXV systems forgive a little, but the nameplate is still the target.",
+    );
+  }
+  if (a2l && r.id !== "R-717") steps.push(`${r.safety}. Weigh to the nameplate and stay inside the charge limit for that unit and that room.`);
+  if (LOW_STAGE.has(r.id)) steps.push("This is a low-stage fluid. Charge that stage alone, by weight, after a deep vacuum. Don't use the high-stage chart, and don't move gas between stages.");
+  return { title, steps, places: bubblePlaces(r, zeo, near, gK, gF) };
+}
+
+function bubblePlaces(r, zeo, near, gK, gF) {
+  if (r.id === "R-744") {
+    return [
+      ["Evaporator", "Below the critical point, R-744 has one saturation temperature. Bubble and dew are the same. Superheat is the outlet temperature minus that temperature, at the outlet pressure."],
+      ["Condenser or gas cooler", "If the high side stays below 31 °C, subcooling is real: saturation temperature minus liquid-line temperature. Above 31 °C there is no bubble point and no dew point. The gas-cooler outlet is dense gas, not subcooled liquid."],
+      ["Compressor", "Suction and discharge are vapor only, so bubble and dew do not apply. Read superheat at the evaporator outlet, not at the compressor, when the suction line is long."],
+    ];
+  }
+  if (r.id === "R-717") {
+    return [
+      ["One temperature", "Ammonia is a pure fluid. At a given pressure, bubble point and dew point are the same number."],
+      ["DX evaporator", "Superheat is the outlet temperature minus the saturation temperature at the outlet pressure. Use the evaporator outlet, not the compressor."],
+      ["Flooded or overfeed coil", "The coil is kept wet on purpose. There is no useful superheat. Watch receiver or level-column level, and the pressure."],
+      ["Condenser and liquid line", "Subcooling is the saturation temperature minus the liquid-line temperature, at the liquid-line pressure."],
+    ];
+  }
+  if (zeo) {
+    return [
+      ["Two temperatures", `At one pressure, ${r.id} starts boiling at the bubble point and finishes at the dew point. That gap is the glide, about ${gK} K (${gF} °F).`],
+      ["Evaporator", "Pressure stays about steady while the temperature glides up from the bubble point at the inlet to the dew point at the outlet. Superheat is outlet temperature minus the dew point at the outlet pressure. The bubble column makes superheat look too high."],
+      ["Condenser", "Hot vapor starts condensing at the dew point and the last vapor disappears at the bubble point, so the temperature glides down. Subcooling is the bubble point minus the liquid-line temperature. The dew column makes subcooling look too high."],
+      ["Compressor and liquid line", "No boiling or condensing there. The compressor sees superheated vapor. The liquid line should already be cooler than the bubble point. Read the pressure at the same place you read the temperature."],
+    ];
+  }
+  if (near) {
+    return [
+      ["Almost one temperature", `${r.id} glides about ${gK} K (${gF} °F). Bubble and dew are close enough for a rough check on either column.`],
+      ["Evaporator", "The careful reading uses the dew (vapor) side: superheat is outlet temperature minus dew point at the outlet pressure."],
+      ["Condenser and liquid line", "The careful reading uses the bubble (liquid) side: subcooling is bubble point minus liquid-line temperature, at the liquid-line pressure."],
+      ["If you swap them", "Swapping bubble and dew only costs you about the glide. On a high-glide blend that shortcut is wrong. Here the error is small."],
+    ];
+  }
+  return [
+    ["One temperature", `${r.id} is a pure fluid. At a given pressure, bubble point and dew point are the same number. This chart has one column.`],
+    ["Evaporator", "Liquid starts boiling at the metering device and finishes at the outlet. Superheat is how much warmer the outlet vapor is than the saturation temperature at the outlet pressure."],
+    ["Condenser and liquid line", "Vapor finishes condensing at that same saturation temperature. Subcooling is how much cooler the liquid line is than the saturation temperature at the liquid-line pressure."],
+    ["Compressor", "No phase change. It only sees superheated vapor. A reading at the compressor is not the coil's superheat if the suction line picked up heat."],
+  ];
+}
+
+function renderCharge(r) {
+  const guide = chargeGuide(r);
+  $("charge").innerHTML = `<h2>${esc(guide.title)}</h2>
+    <ol>${guide.steps.map((step) => `<li>${esc(step)}</li>`).join("")}</ol>
+    <h2>Bubble and dew through the system</h2>
+    ${guide.places.map(([where, what]) => `<div class="place"><dt>${esc(where)}</dt><dd>${esc(what)}</dd></div>`).join("")}
+    <p class="fine">Training guidance. The nameplate and the OEM charging procedure win.</p>`;
+}
+
 function renderFacts(r) {
   const room = pressureAt(r, 25, "b");
   const items = [];
@@ -422,6 +532,7 @@ function render() {
   if (state.tab === "chart") renderChart(r);
   if (state.tab === "coil") renderCoil(r);
   renderFacts(r);
+  renderCharge(r);
   $("legal").textContent = `Curves are saturation pressures from reference equations of state. Zeotropic blends show liquid and vapor separately.${r.approx ? " This blend’s mixture data is estimated." : ""} A static vessel with liquid in it follows the liquid line at room temperature. Confirm the cylinder and the OEM chart before you set a control or open a system.`;
   if (!$("sheet").hidden) renderPicker();
 }

@@ -175,6 +175,13 @@
     border-radius: 8px; padding: 10px 8px;
   }
   #list button.current { background: var(--soft); }
+  .place { margin-top: 10px; }
+  .place dt { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--brand); }
+  .place dd { margin: 2px 0 0; font-size: 14px; line-height: 1.4; }
+  .guide h2 { margin: 14px 0 0; font-size: 15px; }
+  .guide h2:first-child { margin-top: 0; }
+  .guide ol { margin: 8px 0 0; padding-left: 1.15rem; }
+  .guide li { margin: 6px 0; font-size: 14px; line-height: 1.4; }
   .rid { width: 92px; flex: none; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 700; font-size: 13px; }
   .rname { display: block; font-size: 14px; }
   .rcomp { display: block; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -223,6 +230,7 @@ try {
   <section class="card" id="panel-chart" hidden></section>
   <section class="card" id="panel-coil" hidden></section>
   <section class="card facts" id="facts"></section>
+  <section class="card facts guide" id="charge"></section>
   <p class="legal" id="legal"></p>
 </main>
 <div class="sheet" id="sheet" hidden>
@@ -236,6 +244,6 @@ try {
     <ul id="list"></ul>
   </div>
 </div>
-<script src="app.js?v=2"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>
