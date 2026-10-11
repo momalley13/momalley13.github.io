@@ -14,3 +14,5 @@ Live app: [https://momalley13.github.io/](https://momalley13.github.io/)
 4. Tap **Add**.
 
 The icon opens full screen and works offline after the first load.
+
+Project record, source, and the decisions behind the chart: [momalley13/refrigerant-pt](https://github.com/momalley13/refrigerant-pt).
