@@ -119,6 +119,12 @@
   }
   input { flex: 1; min-width: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
   select { width: 118px; flex: none; font-size: 14px; }
+  .sign {
+    width: 44px; flex: none; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--chip); color: var(--ink); font-size: 18px; font-weight: 700;
+    padding: 0;
+  }
+  .sign:active { background: var(--brand); color: var(--brand-ink); }
   .result { margin-top: 12px; background: var(--soft); border-radius: 12px; padding: 12px; }
   .kicker { margin: 0; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); font-weight: 650; }
   .big { margin: 2px 0 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 20px; font-weight: 700; }
@@ -244,6 +250,6 @@ try {
     <ul id="list"></ul>
   </div>
 </div>
-<script src="app.js?v=6"></script>
+<script src="app.js?v=7"></script>
 </body>
 </html>
