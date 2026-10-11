@@ -4,9 +4,11 @@ Saturation pressure–temperature lookup for 194 refrigerants used in domestic, 
 
 Training values. Confirm the OEM chart before you set a control or open a system.
 
+Live app: [https://momalley13.github.io/](https://momalley13.github.io/)
+
 ## On an iPhone
 
-1. Open [https://momalley13.github.io/refrigerant-pt/](https://momalley13.github.io/refrigerant-pt/) in Safari.
+1. Open [https://momalley13.github.io/](https://momalley13.github.io/) in Safari.
 2. Tap the Share button.
 3. Tap **Add to Home Screen**.
 4. Tap **Add**.
