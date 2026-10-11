@@ -467,11 +467,138 @@ function bubblePlaces(r, zeo, near, gK, gF) {
   ];
 }
 
+
+function phasePicture(r) {
+  const glideK = r.glide || 0;
+  const glide = Boolean(r.pd) && glideK >= 0.4;
+  const near = r.kind === "blend" && !glide;
+  const mode = r.id === "R-744" ? "co2" : glide ? "glide" : near ? "near" : "pure";
+  const clamp = (t) => Math.min(tMax(r) - 0.4, Math.max(r.t0 + 0.4, t));
+  const sideAt = (target) => {
+    const t = clamp(target);
+    const pressure = pressureAt(r, t, "d") ?? pressureAt(r, t, "b");
+    if (pressure == null) return null;
+    const dew = tempAt(r, pressure, "d");
+    const bubble = tempAt(r, pressure, "b");
+    if (dew == null || bubble == null) return null;
+    return { bubble, dew, pressure };
+  };
+  const highTarget = r.tcrit != null ? Math.min(38, r.tcrit - 4) : 38;
+  return {
+    mode,
+    glideK,
+    low: sideAt(4),
+    high: sideAt(highTarget),
+    tcrit: r.tcrit,
+    showCriticalEnd: Boolean(r.critExact && r.tcrit != null && r.tcrit < 36),
+  };
+}
+
+function arrowPath(x, y, dir) {
+  if (dir === "right") return `M ${x - 5} ${y - 6} L ${x + 7} ${y} L ${x - 5} ${y + 6}`;
+  if (dir === "left") return `M ${x + 5} ${y - 6} L ${x - 7} ${y} L ${x + 5} ${y + 6}`;
+  if (dir === "up") return `M ${x - 6} ${y + 5} L ${x} ${y - 7} L ${x + 6} ${y + 5}`;
+  return `M ${x - 6} ${y - 5} L ${x} ${y + 7} L ${x + 6} ${y - 5}`;
+}
+
+function dot(x, y, kind) {
+  const fill = kind === "bubble" ? "var(--brand)" : "var(--dew)";
+  return `<circle cx="${x}" cy="${y}" r="7" fill="${fill}" stroke="var(--surface)" stroke-width="2"/>`;
+}
+
+function labelAnchor(x) {
+  if (x < 96) return { x: 4, anchor: "start" };
+  if (x > 264) return { x: 356, anchor: "end" };
+  return { x, anchor: "middle" };
+}
+
+function loopSvg(mode) {
+  const split = mode === "glide";
+  const uid = split ? "glide" : "same";
+  const pipe = (x1, y1, x2, y2, stroke) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${stroke}" stroke-width="8" stroke-linecap="round"/>`;
+  const end = split ? ["Dew", "Bubble"] : ["Sat", "Sat"];
+  return `<svg viewBox="0 0 360 214" role="img" aria-label="Refrigeration loop showing bubble and dew points">
+    <defs>
+      <linearGradient id="${uid}-cond" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="var(--dew)"/><stop offset="1" stop-color="var(--brand)"/></linearGradient>
+      <linearGradient id="${uid}-evap" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stop-color="var(--brand)"/><stop offset="1" stop-color="var(--dew)"/></linearGradient>
+    </defs>
+    <circle cx="14" cy="14" r="5" fill="var(--brand)"/>
+    <text x="24" y="18" fill="var(--muted)" font-size="12">Bubble, liquid</text>
+    <circle cx="148" cy="14" r="5" fill="var(--dew)"/>
+    <text x="158" y="18" fill="var(--muted)" font-size="12">Dew, vapor</text>
+    <text x="180" y="46" text-anchor="middle" fill="var(--ink)" font-size="13" font-weight="600">Condenser</text>
+    ${pipe(86, 70, 274, 70, split ? `url(#${uid}-cond)` : "var(--brand)")}
+    <path d="${arrowPath(180, 70, "right")}" fill="var(--ink)"/>
+    ${dot(86, 70, "dew")}${dot(274, 70, "bubble")}
+    <text x="86" y="58" text-anchor="middle" fill="var(--dew)" font-size="11" font-weight="600">${end[0]}</text>
+    <text x="274" y="58" text-anchor="middle" fill="var(--brand)" font-size="11" font-weight="600">${end[1]}</text>
+    ${pipe(86, 70, 86, 156, "var(--line)")}
+    <path d="${arrowPath(86, 112, "up")}" fill="var(--ink)"/>
+    ${pipe(274, 70, 274, 156, "var(--line)")}
+    <path d="${arrowPath(274, 112, "down")}" fill="var(--ink)"/>
+    <text x="132" y="118" text-anchor="middle" fill="var(--muted)" font-size="12">Compressor</text>
+    <text x="228" y="118" text-anchor="middle" fill="var(--muted)" font-size="12">TXV</text>
+    <text x="180" y="196" text-anchor="middle" fill="var(--ink)" font-size="13" font-weight="600">Evaporator</text>
+    ${pipe(86, 156, 274, 156, split ? `url(#${uid}-evap)` : "var(--brand)")}
+    <path d="${arrowPath(180, 156, "left")}" fill="var(--ink)"/>
+    ${dot(274, 156, "bubble")}${dot(86, 156, "dew")}
+    <text x="274" y="176" text-anchor="middle" fill="var(--brand)" font-size="11" font-weight="600">${end[1]}</text>
+    <text x="86" y="176" text-anchor="middle" fill="var(--dew)" font-size="11" font-weight="600">${end[0]}</text>
+  </svg>`;
+}
+
+function trackSvg(title, hint, side, flow, glideK, mode) {
+  const left = 28, right = 332, y = 46;
+  const same = !side || Math.abs(side.dew - side.bubble) < 0.35;
+  const span = 14;
+  const mid = side ? (side.bubble + side.dew) / 2 : 0;
+  const xOf = (t) => left + ((t - (mid - span / 2)) / span) * (right - left);
+  const bubbleX = side && !same ? Math.min(right - 16, Math.max(left + 16, xOf(side.bubble))) : (left + right) / 2;
+  const dewX = side && !same ? Math.min(right - 16, Math.max(left + 16, xOf(side.dew))) : (left + right) / 2;
+  const goingRight = flow === "evap" ? dewX >= bubbleX : bubbleX >= dewX;
+  let body = `<line x1="${left}" y1="${y}" x2="${right}" y2="${y}" stroke="var(--chip)" stroke-width="8" stroke-linecap="round"/>`;
+  if (!same) {
+    body += `<line x1="${Math.min(bubbleX, dewX)}" y1="${y}" x2="${Math.max(bubbleX, dewX)}" y2="${y}" stroke="var(--brand)" stroke-width="8" stroke-linecap="round"/>`;
+  }
+  if (side && same) {
+    body += `${dot((left + right) / 2, y, "bubble")}
+      <text x="${(left + right) / 2}" y="28" text-anchor="middle" fill="var(--ink)" font-size="12" font-weight="600">${mode === "near" ? `Bubble ≈ dew · ${glideK.toFixed(1)} K glide` : "Bubble = dew"}</text>
+      <text x="${(left + right) / 2}" y="96" text-anchor="middle" fill="var(--muted)" font-size="12">${esc(formatT(side.bubble, state.tUnit))} · ${esc(formatP(side.pressure, state.pUnit))}</text>`;
+  } else if (side) {
+    const b = labelAnchor(bubbleX);
+    const d = labelAnchor(dewX);
+    body += `${dot(bubbleX, y, "bubble")}${dot(dewX, y, "dew")}
+      <path d="${arrowPath((bubbleX + dewX) / 2, y, goingRight ? "right" : "left")}" fill="var(--ink)"/>
+      <text x="${b.x}" y="16" text-anchor="${b.anchor}" fill="var(--brand)" font-size="12" font-weight="600">Bubble</text>
+      <text x="${b.x}" y="32" text-anchor="${b.anchor}" fill="var(--ink)" font-size="12">${esc(formatT(side.bubble, state.tUnit))}</text>
+      <text x="${d.x}" y="78" text-anchor="${d.anchor}" fill="var(--dew)" font-size="12" font-weight="600">Dew ${esc(formatT(side.dew, state.tUnit))}</text>
+      <text x="180" y="100" text-anchor="middle" fill="var(--muted)" font-size="12">${esc(`${(side.dew - side.bubble).toFixed(1)} K glide · ${formatP(side.pressure, state.pUnit)}`)}</text>`;
+  } else {
+    body += `<text x="180" y="52" text-anchor="middle" fill="var(--muted)" font-size="12">No saturation at this example</text>`;
+  }
+  const evapHint = mode === "glide" ? "Boils from bubble toward dew" : "Bubble and dew are the same point";
+  const condHint = mode === "glide" ? "Condenses from dew toward bubble" : "One saturation temperature";
+  return `<p class="kicker">${esc(title)}</p><p class="fine" style="margin-top:0">${flow === "evap" ? evapHint : condHint}</p>
+    <svg viewBox="0 0 360 108" role="img" aria-label="${esc(title)}">${body}</svg>`;
+}
+
+function diagramsHtml(r) {
+  const phase = phasePicture(r);
+  const note = phase.showCriticalEnd && phase.tcrit != null
+    ? `<p class="fine">Above ${esc(bothT(phase.tcrit))} the markers disappear. There is no bubble point and no dew point.</p>`
+    : "";
+  return `${loopSvg(phase.mode)}
+    ${trackSvg("Evaporator, one pressure", "", phase.low, "evap", phase.glideK, phase.mode)}
+    ${trackSvg("Condenser, one pressure", "", phase.high, "cond", phase.glideK, phase.mode)}
+    ${note}`;
+}
+
 function renderCharge(r) {
   const guide = chargeGuide(r);
   $("charge").innerHTML = `<h2>${esc(guide.title)}</h2>
     <ol>${guide.steps.map((step) => `<li>${esc(step)}</li>`).join("")}</ol>
     <h2>Bubble and dew through the system</h2>
+    ${diagramsHtml(r)}
     ${guide.places.map(([where, what]) => `<div class="place"><dt>${esc(where)}</dt><dd>${esc(what)}</dd></div>`).join("")}
     <p class="fine">Training guidance. The nameplate and the OEM charging procedure win.</p>`;
 }
