@@ -123,7 +123,8 @@ function usedIn(groups) {
 function current() { return refs.find((r) => r.id === state.id) || refs[0]; }
 function minus(s) { return String(s).replace("-", "−"); }
 function esc(s) {
-  return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&", "<": "<", ">": ">", '"': """, "'": "&#39;" }[c]));
+  const map = { "&": "amp", "<": "lt", ">": "gt", '"': "quot", "'": "#39" };
+  return String(s ?? "").replace(/[&<>"']/g, (c) => "&" + map[c] + ";");
 }
 function tone(safety) {
   if (!safety) return "";
