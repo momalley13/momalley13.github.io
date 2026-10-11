@@ -1,8 +1,8 @@
-const CACHE = "refrigerant-pt-v2";
+const CACHE = "refrigerant-pt-v3";
 const ASSETS = [
   "./",
   "./index.html",
-  "./app.js",
+  "./app.js?v=2",
   "./data/refrigerants.json",
   "./manifest.webmanifest",
   "./apple-touch-icon.png",
