@@ -50,7 +50,7 @@
     --header: #f4f7f8;
     --header-sub: #b7c6d0;
     --dew: #9ec0dc;
-    --chip: #243038;
+    --chip: #2c3e48;
     color-scheme: dark;
   }
   @media (prefers-color-scheme: dark) {
@@ -59,7 +59,7 @@
       --line: #2a3840; --navy: #12283f; --brand: #1f8f86; --brand-ink: #f3fffd;
       --soft: #1c3336; --warn: #3a2220; --warn-fg: #ffc7c0; --note: #3a301c;
       --note-fg: #f3d7a1; --header: #f4f7f8; --header-sub: #b7c6d0; --dew: #9ec0dc;
-      --chip: #243038; color-scheme: dark;
+      --chip: #2c3e48; color-scheme: dark;
     }
   }
   * { box-sizing: border-box; }
@@ -170,9 +170,14 @@
     border-bottom: 1px solid var(--line);
   }
   .search input { border: 0; background: transparent; padding: 8px 0; font-family: inherit; font-size: 16px; }
-  .chips { display: flex; gap: 8px; overflow-x: auto; padding: 8px 12px; scrollbar-width: none; }
+  .chips { display: flex; gap: 8px; overflow-x: auto; padding: 10px 12px; scrollbar-width: none; }
   .chips::-webkit-scrollbar { display: none; }
-  .chip { flex: none; border-radius: 999px; padding: 6px 12px; }
+  .chip {
+    flex: none; border-radius: 999px; padding: 8px 14px;
+    font-size: 15px; font-weight: 700;
+    border: 1px solid var(--line);
+  }
+  .chip.on { border-color: var(--brand); }
   .count { margin: 0; padding: 0 14px 6px; font-size: 12px; color: var(--muted); }
   #list { list-style: none; margin: 0; padding: 0 8px 16px; overflow: auto; }
   #list button {
@@ -250,6 +255,6 @@ try {
     <ul id="list"></ul>
   </div>
 </div>
-<script src="app.js?v=8"></script>
+<script src="app.js?v=9"></script>
 </body>
 </html>
