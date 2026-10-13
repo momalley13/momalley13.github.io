@@ -245,7 +245,7 @@ try {
   <section class="card" id="panel-coil" hidden></section>
   <section class="card cycle" id="cycle">
     <p class="kicker" style="margin:0 0 6px">Cycle points</p>
-    <svg viewBox="0 0 360 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Basic vapor-compression refrigeration cycle with superheat, subcooling, and charge points">
+    <svg viewBox="0 0 360 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Basic vapor-compression refrigeration cycle with live superheat and subcooling">
       <rect width="360" height="220" fill="none"/>
       <rect x="20" y="80" width="50" height="40" rx="4" fill="#1b365d" stroke="#0f6e6b" stroke-width="1.5"/>
       <text x="45" y="104" text-anchor="middle" fill="#f7fffe" font-size="10" font-weight="700">Comp</text>
@@ -260,16 +260,16 @@ try {
       <path d="M310 120 V160 H220" stroke="#1b365d" stroke-width="2" fill="none"/>
       <path d="M140 180 H70 V120" stroke="#1b365d" stroke-width="2" fill="none"/>
       <circle cx="100" cy="180" r="6" fill="#0f6e6b" stroke="#1b365d" stroke-width="1.5"/>
-      <text x="100" y="200" text-anchor="middle" fill="#1b365d" font-size="9" font-weight="700">SH</text>
-      <text x="100" y="212" text-anchor="middle" fill="#5c6b76" font-size="8">Dew @ evap outlet</text>
+      <text id="shLabel" x="100" y="200" text-anchor="middle" fill="#1b365d" font-size="9" font-weight="700">SH</text>
+      <text id="shVal" x="100" y="212" text-anchor="middle" fill="#0f6e6b" font-size="11" font-weight="700">—</text>
       <circle cx="250" cy="40" r="6" fill="#1b365d" stroke="#0f6e6b" stroke-width="1.5"/>
-      <text x="250" y="30" text-anchor="middle" fill="#1b365d" font-size="9" font-weight="700">SC</text>
-      <text x="250" y="18" text-anchor="middle" fill="#5c6b76" font-size="8">Bubble @ liquid line</text>
+      <text id="scLabel" x="250" y="30" text-anchor="middle" fill="#1b365d" font-size="9" font-weight="700">SC</text>
+      <text id="scVal" x="250" y="18" text-anchor="middle" fill="#1b365d" font-size="11" font-weight="700">—</text>
       <circle cx="250" cy="60" r="5" fill="#fff6e8" stroke="#7a5310" stroke-width="1.5"/>
       <text x="250" y="78" text-anchor="middle" fill="#7a5310" font-size="8" font-weight="700">Charge</text>
       <text x="250" y="88" text-anchor="middle" fill="#5c6b76" font-size="7">by weight · liquid</text>
     </svg>
-    <p>Superheat: dew point at the evaporator outlet pressure. Subcooling: bubble point at the liquid-line pressure. Charge by weight; liquid-only for blends. Training values only — the nameplate and the OEM chart win.</p>
+    <p>Superheat: dew point at the evaporator outlet pressure. Subcooling: bubble point at the liquid-line pressure. Numbers update from the Coil tab. Charge by weight; liquid-only for blends. Training values only — the nameplate and the OEM chart win.</p>
   </section>
   <section class="card facts" id="facts"></section>
   <section class="card facts guide" id="charge"></section>
@@ -286,6 +286,40 @@ try {
     <ul id="list"></ul>
   </div>
 </div>
-<script src="app.js?v=10"></script>
+<script src="app.js?v=11"></script>
+<script>
+// Live SH / SC on the diagram from Coil inputs
+function updateCycleReadings() {
+  const shEl = document.getElementById('shVal');
+  const scEl = document.getElementById('scVal');
+  if (!shEl || !scEl) return;
+  const pIn = document.getElementById('coilP');
+  const tIn = document.getElementById('coilT');
+  if (!pIn || !tIn) { shEl.textContent = '—'; scEl.textContent = '—'; return; }
+  const pv = parseFloat(pIn.value), tv = parseFloat(tIn.value);
+  if (!isFinite(pv) || !isFinite(tv)) { shEl.textContent = '—'; scEl.textContent = '—'; return; }
+  // Values are already calculated in the Coil panel; mirror the displayed result if present
+  const result = document.querySelector('#panel-coil .result .big');
+  if (result) {
+    const texts = Array.from(document.querySelectorAll('#panel-coil .result .big')).map(el => el.textContent.trim());
+    if (texts.length >= 2) {
+      shEl.textContent = texts[0];
+      scEl.textContent = texts[1];
+      return;
+    }
+  }
+  shEl.textContent = '—';
+  scEl.textContent = '—';
+}
+document.addEventListener('input', (e) => {
+  if (e.target && (e.target.id === 'coilP' || e.target.id === 'coilT' || e.target.id === 'coilPU' || e.target.id === 'coilTU')) {
+    setTimeout(updateCycleReadings, 50);
+  }
+});
+document.addEventListener('click', (e) => {
+  if (e.target && e.target.closest && e.target.closest('[data-tab="coil"]')) setTimeout(updateCycleReadings, 100);
+});
+setTimeout(updateCycleReadings, 800);
+</script>
 </body>
 </html>
