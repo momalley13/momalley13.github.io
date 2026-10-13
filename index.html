@@ -202,6 +202,10 @@
   .cycle { margin-top: 12px; }
   .cycle svg { width: 100%; height: auto; display: block; }
   .cycle p { margin: 6px 0 0; font-size: 13px; color: var(--muted); line-height: 1.4; }
+  .valves h3 { margin: 14px 0 6px; font-size: 15px; }
+  .valves ul, .valves ol { margin: 6px 0 0; padding-left: 1.15rem; }
+  .valves li { margin: 4px 0; font-size: 14px; line-height: 1.4; }
+  .valves .row { margin-top: 8px; }
   @media (min-width: 640px) {
     .sheet { align-items: center; padding: 24px; }
     .sheet-card { border-radius: 16px; max-height: 80vh; }
@@ -271,6 +275,37 @@ try {
     </svg>
     <p>Superheat: dew point at the evaporator outlet pressure. Subcooling: bubble point at the liquid-line pressure. Numbers update from the Coil tab. Charge by weight; liquid-only for blends. Training values only — the nameplate and the OEM chart win.</p>
   </section>
+  <section class="card valves" id="valves">
+    <p class="kicker" style="margin:0 0 6px">EPR / CPR & stability</p>
+    <h3>EPR (Evaporator Pressure Regulator)</h3>
+    <p class="fine" style="margin:0">Suction line leaving the evaporator. Inlet-sensing. Holds a <strong>minimum</strong> evaporator pressure / coil temperature. Used on warmer evaporators in multi-temp or three-pipe systems, and for humidity or freeze protection.</p>
+    <p class="fine">Set method: choose the minimum coil temperature the chamber or box allows (typically box temp minus design TD). Convert that temperature on the Lookup tab for the refrigerant selected. Gauge on the evaporator side of the valve. Adjust under low load, not during hot pull-down or right after defrost. High-glide blends: use the correct dew or bubble point.</p>
+    <h3>CPR (Crankcase Pressure Regulator)</h3>
+    <p class="fine" style="margin:0">Suction line at the compressor inlet. Outlet-sensing. Limits the <strong>maximum</strong> pressure the compressor sees. Protects the motor from overload after defrost or on a hot pull-down.</p>
+    <p class="fine">Set method: under full load or just out of defrost, adjust so the compressor draws at or just under nameplate RLA. Use the compressor manufacturer’s maximum operating suction pressure, converted on the Lookup tab for the refrigerant in the machine. Too high = no protection. Too low = long pull-down.</p>
+    <div class="row" style="margin-top:12px">
+      <label style="flex:1;margin:0"><span>Target coil temp for EPR</span><input id="eprTarget" inputmode="decimal" placeholder="e.g. 0" aria-label="Target coil temperature"></label>
+      <label style="width:100px;margin:0"><span>Unit</span><select id="eprUnit"><option value="C">°C</option><option value="F">°F</option></select></label>
+    </div>
+    <p class="fine" id="eprHint">Enter a target and use the Lookup tab (Temp → pressure) on the selected refrigerant to read the pressure to set the EPR. Training value only.</p>
+    <h3>Stability-chamber notes</h3>
+    <ul>
+      <li>Three-pipe systems typically run liquid, suction, and hot-gas (or defrost) lines. EPR holds coil temperature for tight control and humidity; CPR only protects the compressor.</li>
+      <li>Design TD is often tighter than a walk-in (sometimes 3–6 K). Confirm the chamber OEM chart before adjusting any valve.</li>
+      <li>Hot-gas lines are for defrost or capacity control — not the place to set EPR or CPR.</li>
+      <li>Charge by weight. Liquid-only for blends. R-744 has no bubble or dew above 31 °C.</li>
+    </ul>
+    <h3>Quick diagnostic checklist</h3>
+    <ol>
+      <li>Confirm refrigerant on the nameplate. Use that fluid’s PT data.</li>
+      <li>Superheat: dew point at evaporator outlet pressure. Typical DX target ~5–8 K — confirm OEM.</li>
+      <li>Subcooling: bubble point at liquid-line pressure. Confirm OEM target.</li>
+      <li>EPR stuck open → coil too cold / humidity drop. Stuck closed → coil too warm.</li>
+      <li>CPR stuck open → overload trips after defrost. Stuck closed → long pull-down, low suction.</li>
+      <li>High-glide blends: bubble and dew differ. Use the correct one for the measurement.</li>
+      <li>Always: training values only. The nameplate and the OEM chart win.</li>
+    </ol>
+  </section>
   <section class="card facts" id="facts"></section>
   <section class="card facts guide" id="charge"></section>
   <p class="legal" id="legal"></p>
@@ -286,7 +321,7 @@ try {
     <ul id="list"></ul>
   </div>
 </div>
-<script src="app.js?v=11"></script>
+<script src="app.js?v=12"></script>
 <script>
 // Live SH / SC on the diagram from Coil inputs
 function updateCycleReadings() {
@@ -298,7 +333,6 @@ function updateCycleReadings() {
   if (!pIn || !tIn) { shEl.textContent = '—'; scEl.textContent = '—'; return; }
   const pv = parseFloat(pIn.value), tv = parseFloat(tIn.value);
   if (!isFinite(pv) || !isFinite(tv)) { shEl.textContent = '—'; scEl.textContent = '—'; return; }
-  // Values are already calculated in the Coil panel; mirror the displayed result if present
   const result = document.querySelector('#panel-coil .result .big');
   if (result) {
     const texts = Array.from(document.querySelectorAll('#panel-coil .result .big')).map(el => el.textContent.trim());
@@ -314,6 +348,12 @@ function updateCycleReadings() {
 document.addEventListener('input', (e) => {
   if (e.target && (e.target.id === 'coilP' || e.target.id === 'coilT' || e.target.id === 'coilPU' || e.target.id === 'coilTU')) {
     setTimeout(updateCycleReadings, 50);
+  }
+  if (e.target && e.target.id === 'eprTarget') {
+    const hint = document.getElementById('eprHint');
+    const val = e.target.value;
+    const unit = document.getElementById('eprUnit')?.value || 'C';
+    if (hint && val) hint.textContent = `Target ${val} °${unit}. Switch to Lookup → Temp → pressure on the selected refrigerant to read the pressure for the EPR. Training value only — confirm the OEM chart.`;
   }
 });
 document.addEventListener('click', (e) => {
